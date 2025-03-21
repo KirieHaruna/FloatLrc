@@ -22,6 +22,8 @@ namespace FloatLrc
         {
             string ApplicationData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             InitializeComponent();
+            InitializeTrayIcon(); // 初始化托盘图标
+            this.AutoScaleMode = AutoScaleMode.Dpi;
             try
             {
                 this.webView.Source = (System.Uri)SerializeUtil.Decode(SerializeUtil.FileToByte($"{ApplicationData}\\FloatLrc\\Uri.bin"));
@@ -40,7 +42,64 @@ namespace FloatLrc
             this.Resize += new System.EventHandler(this.Form_Resize);
             webView.NavigationStarting += ChangeTextofaddressBar;
         }
+        private NotifyIcon notifyIcon;
+        private ContextMenuStrip trayMenu;
 
+        private void InitializeTrayIcon()
+        {
+            // 创建托盘图标
+            notifyIcon = new NotifyIcon
+            {
+                Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath), 
+                Text = "FloatLrc",
+                Visible = false
+            };
+
+            // 创建右键菜单
+            trayMenu = new ContextMenuStrip();
+            trayMenu.Items.Add("退出", null, OnExitClick);
+
+            notifyIcon.ContextMenuStrip = trayMenu;
+            notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
+        }
+
+        private void NotifyIcon_DoubleClick(object sender, EventArgs e)
+        {
+            this.Show();
+            this.WindowState = FormWindowState.Normal;
+            notifyIcon.Visible = false; // 隐藏托盘图标
+
+            // 可选：将窗口带回前台
+            this.Activate();
+        }
+
+        private void OnExitClick(object sender, EventArgs e)
+        {
+            notifyIcon.Dispose(); // 清理托盘图标
+            Application.Exit();  // 完全退出程序
+        }
+
+        private void MinimizeToTray()
+        {
+            this.Hide();             // 隐藏主窗口
+            notifyIcon.Visible = true; // 显示托盘图标
+
+            // 可选：显示气泡提示
+            notifyIcon.ShowBalloonTip(2000, "FloatLrc", "程序已最小化到托盘", ToolTipIcon.Info);
+        }
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            // 点击关闭按钮时最小化到托盘
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true; // 取消默认关闭行为
+                MinimizeToTray();
+            }
+            else
+            {
+                base.OnFormClosing(e);
+            }
+        }
         private void Form_Resize(object sender, EventArgs e)
         {
             webView.Size = this.ClientSize - new System.Drawing.Size(webView.Location);
